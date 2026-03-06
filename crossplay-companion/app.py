@@ -23,19 +23,28 @@ def solve_board():
     # Convert the image into a base64 string so OpenAI can "see" it
     base64_image = base64.b64encode(image.read()).decode('utf-8')
 
-    # The exact instructions for the AI
+   # The strictly constrained, anti-overlap instructions
     prompt_text = f"""
-    You are an expert at the game NYT Crossplay. 
+    You are a Grandmaster at NYT Crossplay. 
     Here is an image of the current board. 
     My current rack is: {rack_letters} 
-    (A '?' in the rack represents a blank tile that can act as any letter but scores 0 points).
+    (A '?' is a blank tile, worth 0 points, but acts as any letter).
     
-    The tile point values are: 
-    A:1, B:3, C:3, D:2, E:1, F:4, G:2, H:4, I:1, J:8, K:5, L:1, M:3, N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:5, W:5, X:8, Y:5, Z:10.
-    
-    Analyze the board visually. Find the top 3 highest-scoring valid moves I can play right now by connecting my rack letters to the existing letters on the board.
-    
-    Return ONLY valid JSON in this exact format. Do not include markdown formatting, code blocks, or conversational text:
+    Tile values: A:1, B:3, C:3, D:2, E:1, F:4, G:2, H:4, I:1, J:8, K:5, L:1, M:3, N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:5, W:5, X:8, Y:5, Z:10.
+    Crossplay rule: Playing all 7 tiles is a +40 point bonus.
+
+    CRITICAL RULES FOR PLACEMENT (DO NOT BREAK THESE):
+    1. COLLISION DETECTION: You absolutely CANNOT place a letter on a square that already has a letter on it. You can only place tiles on empty squares.
+    2. CONNECTIVITY: Your new word MUST connect to at least one existing letter already on the board.
+    3. VALIDITY: Every new word formed (horizontally and vertically) by your placement must be a real English dictionary word.
+
+    Step-by-Step Execution:
+    - Trace the exact empty squares adjacent to the existing words.
+    - Mentally place your tiles in those EXACT empty squares.
+    - If your proposed word overlaps an existing letter (unless you are intentionally using that existing letter as part of the word), throw it out and start over.
+    - Calculate the score, factoring in the exact 2W/3W/2L/3L squares under the newly placed tiles.
+
+    Return ONLY the top 3 best moves as valid JSON in this exact format. No markdown, no extra text:
     {{
         "moves": [
             {{"word": "EXAMPLE", "score": 40, "position": "Row 5, Col 3 (Horizontal) - Connects with the 'E' in 'TEAM'."}}
