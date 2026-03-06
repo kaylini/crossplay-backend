@@ -23,31 +23,31 @@ def solve_board():
     # Convert the image into a base64 string so OpenAI can "see" it
     base64_image = base64.b64encode(image.read()).decode('utf-8')
 
-   # The strictly constrained, anti-overlap instructions
+   # The ultimate, algorithm-mimicking prompt
     prompt_text = f"""
-    You are a Grandmaster at NYT Crossplay. 
-    Here is an image of the current board. 
-    My current rack is: {rack_letters} 
-    (A '?' is a blank tile, worth 0 points, but acts as any letter).
+    You are a strict, mathematical Scrabble engine analyzing a NYT Crossplay board.
+    My rack is: {rack_letters} (A '?' is a blank tile, worth 0 pts).
     
-    Tile values: A:1, B:3, C:3, D:2, E:1, F:4, G:2, H:4, I:1, J:8, K:5, L:1, M:3, N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:5, W:5, X:8, Y:5, Z:10.
-    Crossplay rule: Playing all 7 tiles is a +40 point bonus.
+    You MUST execute this algorithm in your mind before outputting the final JSON:
 
-    CRITICAL RULES FOR PLACEMENT (DO NOT BREAK THESE):
-    1. COLLISION DETECTION: You absolutely CANNOT place a letter on a square that already has a letter on it. You can only place tiles on empty squares.
-    2. CONNECTIVITY: Your new word MUST connect to at least one existing letter already on the board.
-    3. VALIDITY: Every new word formed (horizontally and vertically) by your placement must be a real English dictionary word.
+    PHASE 1: RIGID GRID MAPPING
+    - The board is a 15x15 grid. Row 1 is the top, Col 1 is the far left.
+    - Scan the board and map the exact Row and Column of EVERY existing letter. 
+    - Treat these existing letters as solid brick walls. You absolutely CANNOT place a new letter on these coordinates.
 
-    Step-by-Step Execution:
-    - Trace the exact empty squares adjacent to the existing words.
-    - Mentally place your tiles in those EXACT empty squares.
-    - If your proposed word overlaps an existing letter (unless you are intentionally using that existing letter as part of the word), throw it out and start over.
-    - Calculate the score, factoring in the exact 2W/3W/2L/3L squares under the newly placed tiles.
+    PHASE 2: COLLISION-FREE PATHFINDING
+    - Find the open, completely empty squares adjacent to the existing letters.
+    - Form a valid English word using my rack tiles + at least one existing board letter.
+    - STRICT CHECK: Verify coordinate-by-coordinate that every single new tile you are placing lands on an EMPTY square. If a tile lands on an existing letter, the move is invalid. Discard it.
 
-    Return ONLY the top 3 best moves as valid JSON in this exact format. No markdown, no extra text:
+    PHASE 3: SCORING
+    - A:1, B:3, C:3, D:2, E:1, F:4, G:2, H:4, I:1, J:8, K:5, L:1, M:3, N:1, O:1, P:3, Q:10, R:1, S:1, T:1, U:1, V:5, W:5, X:8, Y:5, Z:10.
+    - +40 points for using all 7 tiles. Calculate 2W/3W/2L/3L accurately.
+
+    Return ONLY the top 3 verified, collision-free moves as valid JSON. Do not output your Phase 1/2/3 thinking, ONLY the JSON:
     {{
         "moves": [
-            {{"word": "EXAMPLE", "score": 40, "position": "Row 5, Col 3 (Horizontal) - Connects with the 'E' in 'TEAM'."}}
+            {{"word": "EXAMPLE", "score": 40, "position": "Row 5, Col 3 (Horizontal) - Connects to the 'E' at Row 5, Col 4. Tiles placed on verified empty squares."}}
         ]
     }}
     """
