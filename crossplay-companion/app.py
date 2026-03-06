@@ -17,11 +17,16 @@ TILE_VALUES = {
     'U':1, 'V':5, 'W':5, 'X':8, 'Y':5, 'Z':10
 }
 
-print("Downloading SOWPODS dictionary...")
+# 1. THE BIG OPTIMIZATION: Cache word lengths and letter counts on server boot
+print("Downloading and processing SOWPODS dictionary...")
 url = "https://raw.githubusercontent.com/jesstess/Scrabble/master/scrabble/sowpods.txt"
 response = urllib.request.urlopen(url)
-VALID_WORDS = [word.decode('utf-8').strip().upper() for word in response.readlines()]
-print(f"Loaded {len(VALID_WORDS)} words.")
+VALID_WORDS = []
+for line in response.readlines():
+    word = line.decode('utf-8').strip().upper()
+    # Store the word, its exact letter counts, and its length so we never have to recalculate this!
+    VALID_WORDS.append((word, Counter(word), len(word)))
+print(f"Loaded {len(VALID_WORDS)} words into high-speed memory.")
 
 def get_grid_from_ai(base64_image):
     prompt = """
@@ -51,34 +56,38 @@ def get_grid_from_ai(base64_image):
 def find_best_plays(grid, rack):
     rack_letters = rack.replace('?', '')
     num_blanks = rack.count('?')
-    
-    # 1. Gather all letters on the board to figure out what is physically possible
-    board_letters = ""
-    for row in grid:
-        for char in row:
-            if char != "":
-                board_letters += char
-                
-    # 2. THE MASSIVE SPEED UPGRADE: Pre-filter the dictionary
-    pool_counts = Counter(rack_letters + board_letters)
-    possible_words = []
-    for word in VALID_WORDS:
-        word_counts = Counter(word)
-        blanks_needed = sum(max(0, count - pool_counts[char]) for char, count in word_counts.items())
-        if blanks_needed <= num_blanks:
-            possible_words.append(word)
-
     valid_plays = []
 
-    # 3. Now only check the possible words against the grid
     for direction in ["Horizontal", "Vertical"]:
         working_grid = grid if direction == "Horizontal" else [list(i) for i in zip(*grid)]
         
         for row_idx, row in enumerate(working_grid):
+            # 2. THE EMPTY BYPASS: Instantly skip lines that have zero letters
+            row_chars = [c for c in row if c != ""]
+            if not row_chars:
+                continue
+                
+            # 3. THE SNIPER FILTER: Only find words that can be spelled using the Rack + the specific letters in THIS row
+            row_pool = Counter(rack_letters + "".join(row_chars))
+            
+            possible_words = []
+            for word, word_counts, word_len in VALID_WORDS:
+                if word_len > 15:
+                    continue
+                # Math check to see if we have the right tiles
+                blanks_needed = sum(max(0, count - row_pool[char]) for char, count in word_counts.items())
+                if blanks_needed <= num_blanks:
+                    possible_words.append((word, word_len))
+
+            # Now test ONLY the verified, mathematically possible words for this specific row
             for start_col in range(15):
-                for word in possible_words:
-                    word_len = len(word)
+                for word, word_len in possible_words:
                     if start_col + word_len > 15:
+                        continue
+
+                    if start_col > 0 and row[start_col - 1] != "":
+                        continue
+                    if start_col + word_len < 15 and row[start_col + word_len] != "":
                         continue
 
                     rack_temp = Counter(rack_letters)
@@ -88,11 +97,6 @@ def find_best_plays(grid, rack):
                     tiles_placed = 0
                     score = 0
                     
-                    if start_col > 0 and row[start_col - 1] != "":
-                        continue
-                    if start_col + word_len < 15 and row[start_col + word_len] != "":
-                        continue
-
                     for i, char in enumerate(word):
                         board_char = row[start_col + i]
                         
@@ -150,7 +154,7 @@ def solve_board():
         
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"error": "Server timeout or AI grid extraction failed."}), 500
+        return jsonify({"error": "Failed to analyze board."}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
