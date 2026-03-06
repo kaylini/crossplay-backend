@@ -69,7 +69,7 @@ def solve_board():
         
     except Exception as e:
         print(f"Server Error: {e}")
-        return jsonify({"error": "Failed to analyze board. The AI might be busy."}), 500
+        return jsonify({"error": "Failed to analyze board. The AI might be busy or there is an API error."}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
